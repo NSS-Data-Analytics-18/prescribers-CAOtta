@@ -11,12 +11,12 @@ LIMIT 1;
 --1.b. Repeat the above, but this time report the nppes_provider_first_name, 
 --nppes_provider_last_org_name,  specialty_description, and the total number of 
 --claims.
-SELECT nppes_provider_first_name,
+SELECT npi,nppes_provider_first_name,
 	   nppes_provider_last_org_name,
 	   specialty_description,
 	   SUM(total_claim_count) AS total_over_all_drugs
 FROM prescriber INNER JOIN prescription USING (npi)
-GROUP BY nppes_provider_first_name,
+GROUP BY npi,nppes_provider_first_name,
 	   nppes_provider_last_org_name,
 	   specialty_description
 ORDER BY total_over_all_drugs DESC
@@ -32,29 +32,44 @@ GROUP BY specialty_description
 ORDER BY total_claims DESC
 LIMIT 1;
 
----- FAMILY PRACTICE had highest total claims 
+---- FAMILY PRACTICE had highest total claims (left npi in, as grouping by name grouped different 
+--people with the same name together)
 
 
--- b. Which specialty had the most total number of claims for opioids?
-SELECT specialty_description, COUNT (opioid_drug_flag) AS opioid_drug_flag
-FROM prescriber INNER JOIN prescription USING (npi)
-	INNER JOIN drug USING (drug_name)
+-- b. Which specialty had the most total number of claims for opioids? 
+SELECT specialty_description, SUM(total_claim_count) AS total_opioid_claim_count
+FROM prescriber JOIN prescription USING (npi)
+     JOIN drug USING (drug_name)
 WHERE opioid_drug_flag = 'Y'
 GROUP BY specialty_description
-ORDER BY opioid_drug_flag DESC
-LIMIT 1;
+ORDER BY total_opioid_claim_count DESC; -- NURSE PRACTIONER 900845
 
--- Nurse Practitiioner 9551
+--OR 
+SELECT specialty_description, 
+	SUM(CASE WHEN opioid_drug_flag = 'Y' THEN total_claim_count END) AS total_opioid_claim_count
+FROM prescriber JOIN prescription USING (npi)
+     JOIN drug USING (drug_name)
+GROUP BY specialty_description
+ORDER BY total_opioid_claim_count DESC NULLS LAST;  -- NURSE PRACTIONER 900845
+
+
+
 
 --c. **Challenge Question:** Are there any specialties that appear in the prescriber table that have 
 --no associated prescriptions in the prescription table?
 
 
-SELECT DISTINCT specialty_description,COUNT(total_claim_count) AS total_claim_count
+SELECT specialty_description,COUNT(total_claim_count) AS total_claim_count
 FROM prescriber LEFT JOIN prescription USING (npi)
 GROUP BY specialty_description
 ORDER BY total_claim_count ASC;
 
+----OR----
+
+SELECT specialty_description,SUM(total_claim_count) AS total_claim_count
+FROM prescriber LEFT JOIN prescription USING (npi)
+WHERE total_claim_count IS NULL
+GROUP BY specialty_description;
 
 
 --d. **Difficult Bonus:** *Do not attempt until you have solved all other problems!* For each specialty, 
